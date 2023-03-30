@@ -1,7 +1,7 @@
 # Control por puerto serie philips
 # Modelos verificados: 43BDL4550D, 32BDL3550Q
 # Modelos parcialmente compatibles: BDL3230QL (volumen)
-import os.path
+import os
 import serial
 import argparse
 import platform
@@ -34,7 +34,7 @@ class PhilipsControl:
         self.db_modelo = ""
         self.db_bootsource = ""
         self.db_inputsource = ""
-        self.db_powersavingmode= ""
+        self.db_powersavingmode = ""
         self.db_onewire = ""
 
         # Se añaden las variables control y grupo al contructor
@@ -79,13 +79,13 @@ class PhilipsControl:
             # print(f"3. {chr(dir_valores[v]).encode('latin1').hex()}")
 
         # Añade a la variable comando la parte del checksum calculada anteriormente
-        print("Checksum: ", hex(checksum))
+        # print("Checksum: ", hex(checksum))
         comando += chr(checksum)
 
-        print("Datos enviados: " + comando.encode("latin1").hex())
+        # print("Datos enviados: " + comando.encode("latin1").hex())
         ser.write(bytes(comando, "latin1"))
         res = ser.read(timeout)
-        print(f"Datos recibidos: {res.hex()}")
+        # print(f"Datos recibidos: {res.hex()}")
         ser.close()
         return res.hex()
 
