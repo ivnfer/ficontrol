@@ -1,25 +1,51 @@
 # Control por puerto serie philips
 # Modelos verificados: 43BDL4550D, 32BDL3550Q
 # Modelos parcialmente compatibles: BDL3230QL (volumen)
+import os.path
 import serial
 import argparse
 import platform
 from tabulate import tabulate
+import sqlite3
+import sys
+
+# Obtiene la ruta absoluta:
+ruta_absoluta = ""
+if getattr(sys, 'frozen', False):
+    ruta_absoluta = os.path.realpath(os.path.dirname(sys.executable))
+else:
+    ruta_absoluta = os.path.realpath(os.path.dirname(__file__))
 
 
 class PhilipsControl:
     def __init__(self):
         # Versión
         self.sw_version = "v1.1 2023/03/28"
-
         # Si es windows usa el puerto COM
         if platform.system().lower() == 'windows':
             self.puerto_serie = "COM3"
         else:
             self.puerto_serie = "/dev/ttyUSB0"
 
+        # SQLite
+        self.dbpath = ruta_absoluta + "/db/"
+        self.con = sqlite3.connect(f"{self.dbpath}ficontrol.db")
+        self.cur = self.con.cursor()
+        self.db_modelo = ""
+        self.db_bootsource = ""
+        self.db_inputsource = ""
+        self.db_powersavingmode= ""
+        self.db_onewire = ""
+
+        # Se añaden las variables control y grupo al contructor
         self.control = 0x01
         self.group = 0x00
+
+    @staticmethod
+    def str2hex(string_):
+        base16 = int(string_, 16)
+        hex_value = hex(base16)
+        return hex_value
 
     def enviacomando(self, timeout, msg_size, **kwargs):
 
@@ -53,21 +79,54 @@ class PhilipsControl:
             # print(f"3. {chr(dir_valores[v]).encode('latin1').hex()}")
 
         # Añade a la variable comando la parte del checksum calculada anteriormente
-        # print("Checksum: ", hex(checksum))
+        print("Checksum: ", hex(checksum))
         comando += chr(checksum)
 
-        # print("Datos enviados: " + comando.encode("latin1").hex())
+        print("Datos enviados: " + comando.encode("latin1").hex())
         ser.write(bytes(comando, "latin1"))
         res = ser.read(timeout)
-        # print(f"Datos recibidos: {res.hex()}")
+        print(f"Datos recibidos: {res.hex()}")
         ser.close()
         return res.hex()
+
+    def dbcreate(self):
+        if os.path.exists(self.dbpath):
+            pass
+        else:
+            os.mkdir(self.dbpath)
+
+        self.cur.execute("CREATE TABLE IF NOT EXISTS screenconfig("
+                         "model text NOT NULL ,"
+                         "bootsource text,"
+                         "inputsource text,"
+                         "powersavingmode text,"
+                         "onewire text)")
 
     def autoscreensetup(self):
         # Obtiene el modelo del monitor
         ask_modelo = self.enviacomando(15, 0x06, data0=0xA1, data1=0x00)
-        modelo = bytes.fromhex(ask_modelo[8:-2]).decode('utf-8')
+        modelo_monitor = bytes.fromhex(ask_modelo[8:-2]).decode('utf-8')
+        # Selecciona la configuración en función del modelo del monitor
+        self.cur.execute(f"""SELECT * from screenconfig WHERE model= '{modelo_monitor}'""")
+        rows = self.cur.fetchall()
+        for row in rows:
+            self.db_modelo = row[0]
+            self.db_bootsource = int(row[1], 16)
+            self.db_inputsource = int(row[2], 16)
+            self.db_powersavingmode = int(row[3], 16)
+            self.db_onewire = int(row[4], 16)
 
+        print(self.db_modelo, self.db_bootsource, self.db_inputsource, self.db_powersavingmode, self.db_onewire)
+
+        # Aplica la configuración según el modelo
+        # Arranque Fte.
+        self.enviacomando(6, 0x07, data0=0xbb, data1=self.db_bootsource, data2=0x00)
+        # Input Source
+        self.enviacomando(6, 0x09, data0=0xAC, data1=self.db_inputsource, data2=0x01, data3=0x01, data4=0x00)
+        # Ahorro Energético
+        self.enviacomando(6, 0x06, data0=0xD2, data1=self.db_powersavingmode)
+        # One Wire
+        self.enviacomando(6, 0x06, data0=0xBD, data1=self.db_onewire)
 
     def status(self):
         print("Obteniendo información del monitor...")
@@ -236,7 +295,11 @@ class PhilipsControl:
 
 # Programa
 def main():
-    run = PhilipsControl()
+    app = PhilipsControl()
+    # Inicializa la base de datos sqlite
+    app.dbcreate()
+
+    # Argumentos CLI
     parser = argparse.ArgumentParser(description="Obtiene y modifica las opciones de los monitores Philips")
     parser.add_argument('-version', action='store_true', help="Muestra la versión del script")
     parser.add_argument('-status', action='store_true', help="Obtiene información del monitor")
@@ -251,35 +314,40 @@ def main():
     parser.add_argument('-bootsource', type=str, choices=['hdmi1', 'hdmi2', 'hdmi3'],
                         help="Cambia el arranque fte del monitor")
     parser.add_argument('-mute', type=str, choices=['on', 'off'], help="Activa/desactiva el mute en el monitor")
+    parser.add_argument('-autosetup', action='store_true',
+                        help="Aplica la configuración al monitor en función de su modelo")
 
     args = parser.parse_args()
 
     if args.status:
-        run.status()
+        app.status()
 
     if args.version:
-        print(run.sw_version)
+        print(app.sw_version)
 
     if args.power:
-        run.setpowerstatus(args.power)
+        app.setpowerstatus(args.power)
 
     if args.volumen:
-        run.setvolumen(args.volumen[0])
+        app.setvolumen(args.volumen[0])
 
     if args.modoahorro:
-        run.setmodoahorro(args.modoahorro[0])
+        app.setmodoahorro(args.modoahorro[0])
 
     if args.onewire:
-        run.setonewire(args.onewire)
+        app.setonewire(args.onewire)
 
     if args.input:
-        run.setinputsource(args.input)
+        app.setinputsource(args.input)
 
     if args.bootsource:
-        run.setbootsource(args.bootsource)
+        app.setbootsource(args.bootsource)
 
     if args.mute:
-        run.setmute(args.mute)
+        app.setmute(args.mute)
+
+    if args.autosetup:
+        app.autoscreensetup()
 
 
 if __name__ == "__main__":
