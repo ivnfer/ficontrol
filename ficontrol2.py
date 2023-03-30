@@ -10,7 +10,7 @@ from tabulate import tabulate
 class PhilipsControl:
     def __init__(self):
         # Versión
-        self.sw_version = "v1.0 2023/03/28"
+        self.sw_version = "v1.1 2023/03/28"
 
         # Si es windows usa el puerto COM
         if platform.system().lower() == 'windows':
@@ -62,6 +62,12 @@ class PhilipsControl:
         # print(f"Datos recibidos: {res.hex()}")
         ser.close()
         return res.hex()
+
+    def autoscreensetup(self):
+        # Obtiene el modelo del monitor
+        ask_modelo = self.enviacomando(15, 0x06, data0=0xA1, data1=0x00)
+        modelo = bytes.fromhex(ask_modelo[8:-2]).decode('utf-8')
+
 
     def status(self):
         print("Obteniendo información del monitor...")
