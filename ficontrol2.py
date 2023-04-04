@@ -32,8 +32,6 @@ class PhilipsControl:
         self.con = sqlite3.connect(f"{self.dbpath}ficontrol.db")
         self.cur = self.con.cursor()
         self.db_modelo = ""
-        self.db_bootsource = ""
-        self.db_inputsource = ""
         self.db_powersavingmode = ""
         self.db_onewire = ""
 
@@ -73,10 +71,6 @@ class PhilipsControl:
 
         for v in dir_valores:
             comando += chr(dir_valores[v])
-            # print(f"0. {dir_valores[v]}")
-            # print(f"1: {chr(dir_valores[v])}")
-            # print(f"2. {chr(dir_valores[v]).encode('latin1')}")
-            # print(f"3. {chr(dir_valores[v]).encode('latin1').hex()}")
 
         # Añade a la variable comando la parte del checksum calculada anteriormente
         # print("Checksum: ", hex(checksum))
@@ -95,6 +89,15 @@ class PhilipsControl:
         else:
             os.mkdir(self.dbpath)
         self.cur.execute("PRAGMA foreign_keys = ON")
+
+        self.cur.execute("CREATE TABLE IF NOT EXISTS screeninfo("
+                         "id integer primary key autoincrement,"
+                         "modelname text,"
+                         "serialnumber text,"
+                         "fwversion text,"
+                         "build_date text,"
+                         "date_mod date)")
+
         self.cur.execute("CREATE TABLE IF NOT EXISTS screenconfig("
                          "model text NOT NULL ,"
                          "bootsource text,"
@@ -114,32 +117,60 @@ class PhilipsControl:
                          "hexcode text,"
                          "foreign key (idtype) references idgrupos(id))")
 
+    def select_query(self, query):
+        # Ejecuta la query introducida por el usuario en la base de datos
+        self.cur.execute(query)
+        rows = self.cur.fetchall()
+        for row in rows:
+            print(row)
+
     def getcodevalue(self, codedata, groupid: int):
-        _query = f"SELECT codename from codigos where hexcode='{codedata}' and idtype={groupid}"
-        self.cur.execute(_query)
-        return self.cur.fetchone()[0]
+        try:
+            _query = f"SELECT codename from codigos where hexcode='{codedata}' and idtype={groupid}"
+            self.cur.execute(_query)
+            return self.cur.fetchone()[0]
+        except TypeError:
+            return "Entrada no registrada en BBDD"
+
+    def getscreeninfo(self):
+        # Registra en la bbdd información sobre el monitor (modelo, s/n, firmware, build date)
+        print("Registrando datos en la bbdd...")
+        ask_modelo = self.enviacomando(15, 0x06, data0=0xA1, data1=0x00)
+        modelo = bytes.fromhex(ask_modelo[8:-2]).decode('utf-8')
+
+        ask_serialcode = self.enviacomando(19, 0x05, data0=0x15)
+        serialcode = bytes.fromhex(ask_serialcode[8:-2]).decode('utf-8')
+
+        self.cur.execute("SELECT DATETIME('now', 'localtime')")
+        localtime_date = self.cur.fetchone()[0]
+
+        self.cur.execute(f"INSERT INTO screeninfo(modelname, serialnumber, date_mod) VALUES"
+                         f" ('{modelo}', '{serialcode}', '{localtime_date}')")
+        self.con.commit()
 
     def autoscreensetup(self):
+        # Configura la pantalla en función de su modelo, aplica las configuraciones que tiene almacenadas en BBDD.
+        print("Configurando monitor...")
         # Obtiene el modelo del monitor
         ask_modelo = self.enviacomando(15, 0x06, data0=0xA1, data1=0x00)
         modelo_monitor = bytes.fromhex(ask_modelo[8:-2]).decode('utf-8')
+
+        # Obtiene el input que tiene configurado actualmente
+        current_input = self.enviacomando(9, 0x05, data0=0xAD)
+
         # Selecciona la configuración en función del modelo del monitor
         self.cur.execute(f"""SELECT * from screenconfig WHERE model= '{modelo_monitor}'""")
         rows = self.cur.fetchall()
         for row in rows:
             self.db_modelo = row[0]
-            self.db_bootsource = int(row[1], 16)
-            self.db_inputsource = int(row[2], 16)
             self.db_powersavingmode = int(row[3], 16)
             self.db_onewire = int(row[4], 16)
 
-        print(self.db_modelo, self.db_bootsource, self.db_inputsource, self.db_powersavingmode, self.db_onewire)
-
         # Aplica la configuración según el modelo
         # Arranque Fte.
-        self.enviacomando(6, 0x07, data0=0xbb, data1=self.db_bootsource, data2=0x00)
+        self.enviacomando(6, 0x07, data0=0xbb, data1=int(current_input[8:10], 16), data2=0x00)
         # Input Source
-        self.enviacomando(6, 0x09, data0=0xAC, data1=self.db_inputsource, data2=0x01, data3=0x01, data4=0x00)
+        # self.enviacomando(6, 0x09, data0=0xAC, data1=current_input, data2=0x01, data3=0x01, data4=0x00)
         # Ahorro Energético
         self.enviacomando(6, 0x06, data0=0xD2, data1=self.db_powersavingmode)
         # One Wire
@@ -285,11 +316,15 @@ def main():
     parser.add_argument('-mute', type=str, choices=['on', 'off'], help="Activa/desactiva el mute en el monitor")
     parser.add_argument('-autosetup', action='store_true',
                         help="Aplica la configuración al monitor en función de su modelo")
+    parser.add_argument('-saveinfo', action='store_true',
+                        help="Registra en la base de datos la información del monitor (modelo, s/n, firmware)")
+    parser.add_argument('-query', nargs='*', help="Realiza una consulta a la base de datos")
 
     args = parser.parse_args()
 
     if args.status:
         app.status()
+        app.getscreeninfo()
 
     if args.version:
         print(app.sw_version)
@@ -317,6 +352,14 @@ def main():
 
     if args.autosetup:
         app.autoscreensetup()
+
+    if args.saveinfo:
+        app.getscreeninfo()
+
+    if args.query:
+        app.select_query(' '.join(str(x) for x in args.query))
+
+    app.con.close()
 
 
 if __name__ == "__main__":
