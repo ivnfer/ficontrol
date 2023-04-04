@@ -94,13 +94,30 @@ class PhilipsControl:
             pass
         else:
             os.mkdir(self.dbpath)
-
+        self.cur.execute("PRAGMA foreign_keys = ON")
         self.cur.execute("CREATE TABLE IF NOT EXISTS screenconfig("
                          "model text NOT NULL ,"
                          "bootsource text,"
                          "inputsource text,"
                          "powersavingmode text,"
                          "onewire text)")
+
+        self.cur.execute("CREATE TABLE IF NOT EXISTS idgrupos("
+                         "id integer primary key autoincrement ,"
+                         "name text NOT NULL"
+                         ")")
+
+        self.cur.execute("CREATE TABLE IF NOT EXISTS codigos("
+                         "id integer primary key autoincrement, "
+                         "idtype integer NOT NULL,"
+                         "codename text,"
+                         "hexcode text,"
+                         "foreign key (idtype) references idgrupos(id))")
+
+    def getcodevalue(self, codedata, groupid: int):
+        _query = f"SELECT codename from codigos where hexcode='{codedata}' and idtype={groupid}"
+        self.cur.execute(_query)
+        return self.cur.fetchone()[0]
 
     def autoscreensetup(self):
         # Obtiene el modelo del monitor
@@ -153,70 +170,23 @@ class PhilipsControl:
         onewire = self.enviacomando(6, 0x05, data0=0xbc)
 
         # Extrae el valor que necesitamos de cada respuesta
-        hdmi1 = "0d"
-        hdmi2 = "06"
-        hdmi3 = "0f"
-
         ext_modelo = bytes.fromhex(modelo[8:-2]).decode('utf-8')
         ext_serialcode = bytes.fromhex(serialcode[8:-2]).decode('utf-8')
         ext_volumen = int(volumen[8:10], 16)
         ext_brillo = int(screen[8:10], 16)
-        # ext_contraste = int(screen[12:14], 16)
 
-        # Comprueba el valor del mute y asigna una variable
-        if mute[8:10] == "01":
-            ext_mute = "ON"
-        else:
-            ext_mute = "OFF"
-        # Comprueba el valor del powerstate y asigna una variable
-        if powerstate[8:10] == "01":
-            ext_powerstate = "OFF"
-        elif powerstate[8:10] == "02":
-            ext_powerstate = "ON"
-        else:
-            ext_powerstate = "Error al obtener estado"
-
-        # Power Saving Mode
-        if powersavingmode[8:10] == "04":
-            ext_powersavingmode = "MODO 1"
-        elif powersavingmode[8:10] == "05":
-            ext_powersavingmode = "MODO 2"
-        elif powersavingmode[8:10] == "06":
-            ext_powersavingmode = "MODO 3"
-        elif powersavingmode[8:10] == "07":
-            ext_powersavingmode = "MODO 4"
-        elif powersavingmode[8:10] == "15":
-            ext_powersavingmode = "NACK"
-        else:
-            ext_powersavingmode = "Error al obtener estado"
-
-        # HDMI ONE WIRE
-        if onewire[8:10] == "00":
-            ext_onewire = "OFF"
-        elif onewire[8:10] == "01":
-            ext_onewire = "ON"
-        else:
-            ext_onewire = "Error al obtener estado"
-
-        # Arranque FTE
-        if bootsource[8:10] == hdmi1:
-            ext_bootsource = "HDMI 1"
-        elif bootsource[8:10] == hdmi2:
-            ext_bootsource = "HDMI 2"
-        elif bootsource[8:10] == hdmi3:
-            ext_bootsource = "HDMI 3"
-        else:
-            ext_bootsource = "La entrada no es HDMI"
-
-        # INPUT
-        if sinput[8:10] == hdmi1:
-            ext_sinput = "HDMI 1"
-        elif sinput[8:10] == hdmi2:
-            ext_sinput = "HDMI 2"
-        elif sinput[8:10] == hdmi3:
-            ext_sinput = "HDMI 3"
-        else:
-            ext_sinput = "No se ha detectado entrada HDMI"
+        # Comprueba mute
+        ext_mute = self.getcodevalue(mute[8:10], 5)
+        # Comprueba Power
+        ext_powerstate = self.getcodevalue(powerstate[8:10], 6)
+        # Comprueba Power Saving Mode
+        ext_powersavingmode = self.getcodevalue(powersavingmode[8:10], 2)
+        # Comprueba HDMI ONE WIRE
+        ext_onewire = self.getcodevalue(onewire[8:10], 3)
+        # Comprueba Arranque FTE
+        ext_bootsource = self.getcodevalue(bootsource[8:10], 1)
+        # Comprueba Input Source
+        ext_sinput = self.getcodevalue(sinput[8:10], 1)
 
         # Muestra la información por pantalla
         tabla = tabulate([
@@ -228,7 +198,6 @@ class PhilipsControl:
             ["Volumen", ext_volumen],
             ["Mute", ext_mute],
             ["Brillo", ext_brillo],
-            # ["Contraste", ext_contraste],
             ["Modo ahorro", ext_powersavingmode],
             ["HDMI One Wire", ext_onewire]
             ],
