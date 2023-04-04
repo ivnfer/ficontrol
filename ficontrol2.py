@@ -99,9 +99,8 @@ class PhilipsControl:
                          "date_mod date)")
 
         self.cur.execute("CREATE TABLE IF NOT EXISTS screenconfig("
+                         "id integer primary key  autoincrement,"
                          "model text NOT NULL ,"
-                         "bootsource text,"
-                         "inputsource text,"
                          "powersavingmode text,"
                          "onewire text)")
 
