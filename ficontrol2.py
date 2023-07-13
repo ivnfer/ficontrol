@@ -20,7 +20,7 @@ else:
 class PhilipsControl:
     def __init__(self):
         # Versión
-        self.sw_version = "v2.0 2023/05/19"
+        self.sw_version = "v2.2 2023/07/13"
         # Si es windows usa el puerto COM
         if platform.system().lower() == 'windows':
             self.puerto_serie = "COM3"
@@ -32,8 +32,10 @@ class PhilipsControl:
         self.con = sqlite3.connect(f"{self.dbpath}ficontrol.db")
         self.cur = self.con.cursor()
         self.db_modelo = ""
+        self.db_platform = ""
         self.db_powersavingmode = ""
         self.db_onewire = ""
+        self.separador = 42*"="
 
         # Se añaden las variables control y grupo al contructor
         self.control = 0x01
@@ -80,6 +82,7 @@ class PhilipsControl:
             ser.write(bytes(comando, "latin1"))
             res = ser.read(timeout)
             # print(f"Datos recibidos: {res.hex()}")
+            # print(100*"=")
             ser.close()
             return res.hex()
 
@@ -92,33 +95,7 @@ class PhilipsControl:
             pass
         else:
             os.mkdir(self.dbpath)
-        self.cur.execute("PRAGMA foreign_keys = ON")
-
-        self.cur.execute("CREATE TABLE IF NOT EXISTS screeninfo("
-                         "id integer primary key autoincrement,"
-                         "modelname text,"
-                         "serialnumber text,"
-                         "fwversion text,"
-                         "build_date text,"
-                         "updated date)")
-
-        self.cur.execute("CREATE TABLE IF NOT EXISTS screenconfig("
-                         "id integer primary key  autoincrement,"
-                         "model text NOT NULL ,"
-                         "powersavingmode text,"
-                         "onewire text)")
-
-        self.cur.execute("CREATE TABLE IF NOT EXISTS idgrupos("
-                         "id integer primary key autoincrement ,"
-                         "name text NOT NULL"
-                         ")")
-
-        self.cur.execute("CREATE TABLE IF NOT EXISTS codigos("
-                         "id integer primary key autoincrement, "
-                         "idtype integer NOT NULL,"
-                         "codename text,"
-                         "hexcode text,"
-                         "foreign key (idtype) references idgrupos(id))")
+        # self.cur.execute("PRAGMA foreign_keys = ON")
 
     def select_query(self, query):
         # Ejecuta la query introducida por el usuario en la base de datos
@@ -170,7 +147,7 @@ class PhilipsControl:
                 ["Serial Number", row[1]],
                 ["Firmware", row[2]],
                 ["Build Date", row[3]],
-                ["Plataform", row[4]],
+                ["Platform", row[4]],
                 ["Platform Version", row[5]],
                 ["SICP Version", row[6]],
                 ["Power", row[7]],
@@ -187,12 +164,16 @@ class PhilipsControl:
                 ["Tono", row[18]],
                 ["Nivel de negro", row[19]],
                 ["Gamma", row[20]],
-                ["Fecha notificación", row[21]]
+                ["Fecha registro", row[21]]
 
             ],
                 headers=["Parámetro", "Valor"], tablefmt='orgtbl')
 
+        print(self.separador)
+        print("INFORMACIÓN MONITOR")
+        print(self.separador)
         print(last_info_table)
+        print(self.separador)
 
     def autoscreensetup(self):
         # Configura la pantalla en función de su modelo, aplica las configuraciones que tiene almacenadas en BBDD.
@@ -201,17 +182,21 @@ class PhilipsControl:
         ask_modelo = self.enviacomando(15, 0x06, data0=0xA1, data1=0x00)
         modelo_monitor = bytes.fromhex(ask_modelo[8:-2]).decode('utf-8')
 
+        ask_platform = self.enviacomando(13, 0x06, data0=0xA2, data1=0x01)
+        platform_label = bytes.fromhex(ask_platform[8:-2]).decode('utf-8')
         # Obtiene el input que tiene configurado actualmente
         current_input = self.enviacomando(9, 0x05, data0=0xAD)
 
         # Selecciona la configuración en función del modelo del monitor
-        self.cur.execute(f"""SELECT * from screenconfig WHERE model= '{modelo_monitor}'""")
+        self.cur.execute(f"""SELECT * from screenconfig WHERE platform= '{platform_label}'""")
         rows = self.cur.fetchall()
         for row in rows:
-            self.db_modelo = row[0]
+            self.db_modelo = row[1]
+            self.db_platform = row[2]
             self.db_powersavingmode = int(row[3], 16)
             self.db_onewire = int(row[4], 16)
 
+       # print(self.db_modelo, self.db_platform, self.db_powersavingmode, self.db_onewire)
         # Aplica la configuración según el modelo
         # Arranque Fte. Configura la entrada de vídeo actual como arranque fte
         self.enviacomando(6, 0x07, data0=0xbb, data1=int(current_input[8:10], 16), data2=0x00)
@@ -225,20 +210,28 @@ class PhilipsControl:
         # One Wire
         self.enviacomando(6, 0x06, data0=0xBD, data1=self.db_onewire)
 
+    def video_defaults(self):
+        print("Reseteando opciones de vídeo...")
+        try:
+            self.enviacomando(6, 0x0c, data0=0x32, data1=50, data2=50, data3=50, data4=50, data5=50, data6=50, data7=1)
+            print("Comando ejecutado correctamente.")
+        except Exception as error:
+            print(f"Se ha producido un error: {error}")
+
     def get_screen_version(self, print_status: int):
         # Modelo
         modelo = self.enviacomando(15, 0x06, data0=0xA1, data1=0x00)
         # Serial Code
         serialcode = self.enviacomando(19, 0x05, data0=0x15)
         # Firmware Version
-        firmware = self.enviacomando(15, 0x06, data0=0xA1, data1=0x01)
+        firmware = self.enviacomando(12, 0x06, data0=0xA1, data1=0x01)
         # Build Date
         build_date = self.enviacomando(15, 0x06, data0=0xA1, data1=0x02)
         # SICP Version
-        sicp_version = self.enviacomando(15, 0x06, data0=0xA2, data1=0x00)
+        sicp_version = self.enviacomando(10, 0x06, data0=0xA2, data1=0x00)
         # Platform Info
-        platform_label = self.enviacomando(15, 0x06, data0=0xA2, data1=0x01)
-        platform_version = self.enviacomando(9, 0x06, data0=0xA2, data1=0x02)
+        platform_label = self.enviacomando(13, 0x06, data0=0xA2, data1=0x01)
+        platform_version = self.enviacomando(8, 0x06, data0=0xA2, data1=0x02)
 
         # Extrae el valor que necesitamos de cada respuesta
         ext_modelo = bytes.fromhex(modelo[8:-2]).decode('utf-8')
@@ -251,9 +244,9 @@ class PhilipsControl:
 
         # Muestra la información por pantalla si print_status es 1
         if print_status == 1:
-            print(37 * "=")
+
             print("INFORMACIÓN MONITOR")
-            print(37 * "=")
+            print(self.separador)
 
             tabla_version = tabulate([
                 ["Modelo", ext_modelo],
@@ -308,9 +301,8 @@ class PhilipsControl:
 
         # Muestra la información por pantalla si print_status es 1
         if print_status == 1:
-            print(37 * "=")
             print("PARÁMETROS MONITOR")
-            print(37 * "=")
+            print(self.separador)
             screen_table = tabulate([
                 ["Power", ext_powerstate],
                 ["Arranque fte", ext_bootsource],
@@ -346,9 +338,9 @@ class PhilipsControl:
 
         # Muestra la información por pantalla si print_status es 1
         if print_status == 1:
-            print(37 * "=")
+            print(self.separador)
             print("PARÁMETROS VÍDEO")
-            print(37 * "=")
+            print(self.separador)
             screen_info = tabulate([
                 ["Brillo", brillo],
                 ["Color", color],
@@ -361,7 +353,7 @@ class PhilipsControl:
                 headers=["Parámetro", "Valor"], tablefmt='orgtbl')
 
             print(screen_info)
-            print(37*"=")
+            print(self.separador)
 
         listado = {"brillo": brillo, "color": color, "contraste": contraste, "definicion": definicion, "tono": tono,
                    "nivel_negro": black_level, "gamma": gamma_select}
@@ -369,22 +361,11 @@ class PhilipsControl:
         return listado
 
     def status(self, status):
-        if status == "all":
-            print("Obteniendo información del monitor...")
-            self.get_screen_version(print_status=1)
-            print("Obteniendo parámetros del monitor...")
-            self.get_screen_options(print_status=1)
-            print("Obteniendo parámetros de vídeo...")
-            self.get_video_options(print_status=1)
-
-        elif status == "monitor":
-            self.get_screen_options(print_status=1)
-
-        elif status == "video":
-            self.get_video_options(print_status=1)
-
-        elif status == "version":
-            self.get_screen_version(print_status=1)
+        if status == "now":
+            self.getscreeninfo()
+            self.last_info()
+        elif status == "last":
+            self.last_info()
 
     def setpowerstatus(self, opcion):
         if opcion == "on":
@@ -443,7 +424,7 @@ class PhilipsControl:
             self.enviacomando(6, 0x06, data0=0x47, data1=0x00)
 
     def setbrillo(self, brillo):
-        param = self.get_video_options()
+        param = self.get_video_options(print_status=1)
         print(f"Estableciendo brillo con valor: {brillo}")
         try:
             self.enviacomando(6, 0x0c, data0=0x32, data1=brillo, data2=param['color'], data3=param['contraste'],
@@ -454,7 +435,7 @@ class PhilipsControl:
             print(f"No se ha podido modificar el parámetro debido a un error: {err}")
 
     def setcontraste(self, contraste):
-        param = self.get_video_options()
+        param = self.get_video_options(print_status=1)
         print(f"Estableciendo contraste con valor: {contraste}")
         try:
             self.enviacomando(6, 0x0c, data0=0x32, data1=param['brillo'], data2=param['color'], data3=contraste,
@@ -474,8 +455,8 @@ def main():
     # Argumentos CLI
     parser = argparse.ArgumentParser(description="Obtiene y modifica las opciones de los monitores Philips")
     parser.add_argument('-version', action='store_true', help="Muestra la versión del script")
-    parser.add_argument('-status', type=str, choices=['all', 'monitor', 'video', 'version'],
-                        help="Obtiene información del monitor")
+    parser.add_argument('-status', type=str, choices=['now', 'last'],
+                        help="Obtiene información del monitor y la muestra por pantalla")
     parser.add_argument('-power', type=str, choices=['on', 'off'], help="Enciende o apaga el monitor")
     parser.add_argument('-input', type=str, choices=['hdmi1', 'hdmi2', 'hdmi3'],
                         help="Cambia el input del monitor")
@@ -489,12 +470,12 @@ def main():
                         help="Activa/Desactiva el HDMI One Wire en el monitor")
     parser.add_argument('-brillo', type=int, nargs=1, help="Cambia el brillo del monitor")
     parser.add_argument('-contraste', type=int, nargs=1, help="Cambia el contraste del monitor")
-    parser.add_argument('-saveinfo', action='store_true',
-                        help="Registra en la base de datos la información actual del monitor")
-    parser.add_argument('-lastinfo', action='store_true',
-                        help="Muestra la última información del monitor registrada en base de datos")
+    parser.add_argument('-updateinfo', action='store_true',
+                        help="Actualiza en la base de datos la información actual del monitor")
     parser.add_argument('-autosetup', action='store_true',
                         help="Aplica la configuración al monitor en función de su modelo")
+    parser.add_argument('-restorevideo', action='store_true',
+                        help='Resetea los valores de vídeo a 50 (brillo, contraste, color, tono, etc.)')
     parser.add_argument('-query', nargs='*', help="Realiza una consulta a la base de datos")
 
     args = parser.parse_args()
@@ -530,7 +511,10 @@ def main():
     if args.autosetup:
         app.autoscreensetup()
 
-    if args.saveinfo:
+    if args.restorevideo:
+        app.video_defaults()
+
+    if args.updateinfo:
         app.getscreeninfo()
 
     if args.query:
@@ -541,9 +525,6 @@ def main():
 
     if args.contraste:
         app.setcontraste(args.contraste[0])
-
-    if args.lastinfo:
-        app.last_info()
 
     app.con.close()
 
