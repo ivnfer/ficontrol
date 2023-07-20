@@ -1,5 +1,5 @@
 # ficontrol
-RS232 Philips control script
+RS232 control script for philips displays
 
 Allows to send commands to philips displays via RS232. Works on windows (COM3) and linux (/dev/ttyUSB0).
 
