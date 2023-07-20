@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS screeninfo(
 CREATE TABLE IF NOT EXISTS screenconfig(
     id integer primary key autoincrement,
     model text NOT NULL,
+    platform text NOT NULL,
     powersavingmode text,
     onewire text
 );
@@ -73,3 +74,7 @@ INSERT INTO codigos (idtype, codename, hexcode) VALUES (5, 'OFF', '00');
 INSERT INTO codigos (idtype, codename, hexcode) VALUES (5, 'ON', '01');
 INSERT INTO codigos (idtype, codename, hexcode) VALUES (6, 'OFF', '01');
 INSERT INTO codigos (idtype, codename, hexcode) VALUES (6, 'ON', '02');
+
+/* Tabla screenconfig */
+INSERT INTO screenconfig (model, platform, powersavingmode, onewire) VALUES ('32BDL3550Q', 'BDL3550Q', '0x06', '0x00');
+INSERT INTO screenconfig (model, platform, powersavingmode, onewire) VALUES ('43BDL4550D', 'BDL4550D', '0x06', '0x00');
