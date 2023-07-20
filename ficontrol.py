@@ -6,7 +6,7 @@ from typing_extensions import Annotated
 
 
 app = typer.Typer(add_completion=False)
-VERSION = "v2.3 2023/07/13"
+VERSION = "v2.4 2023/07/13"
 
 
 def get_absolute_path():
@@ -38,15 +38,15 @@ def version_callback(value: bool):
 @app.callback()
 def common(
         ctx: typer.Context,
-        _version: bool = typer.Option(None, "--version", callback=version_callback)):
+        _version: bool = typer.Option(None, "--version", callback=version_callback, help="Displays script version")):
     pass
 
 
-@app.command(help="Obtiene la información del monitor y la muestra por pantalla.")
+@app.command(help="Obtains information from the screen")
 def status(
-        now: Annotated[bool, typer.Option(help="Obtiene la información actual de la pantalla.")] = False,
-        last: Annotated[bool, typer.Option(help="Obtiene el último estado registrado de la pantalla")] = False,
-        updateinfo: Annotated[bool, typer.Option(help="Registra en base de datos la información de la pantalla")] = False
+        now: Annotated[bool, typer.Option(help="Gets the current information from the screen.")] = False,
+        last: Annotated[bool, typer.Option(help="Gets the last recorded status of the screen")] = False,
+        updateinfo: Annotated[bool, typer.Option(help="Updates database with the screen information")] = False
 ):
     if now:
         philips_controller.print_screen_info()
@@ -57,10 +57,10 @@ def status(
         philips_controller.insert_info_db()
 
 
-@app.command(help="Enciende o apaga el monitor")
+@app.command(help="Turns the screen on or off")
 def power(
-        on: Annotated[bool, typer.Option(help="Enciende el monitor")] = False,
-        off: Annotated[bool, typer.Option(help="Apaga el monitor")] = False
+        on: Annotated[bool, typer.Option(help="Turn on screen")] = False,
+        off: Annotated[bool, typer.Option(help="Turn off screen")] = False
 ):
     if on:
         philips_controller.set_power_status("on")
@@ -68,11 +68,11 @@ def power(
         philips_controller.set_power_status("off")
 
 
-@app.command(help="Cambia el input del monitor")
-def input_source(
-    hdmi1: Annotated[bool, typer.Option(help="Cambia el input al HDMI 1")] = False,
-    hdmi2: Annotated[bool, typer.Option(help="Cambia el input al HDMI 2")] = False,
-    hdmi3: Annotated[bool, typer.Option(help="Cambia el input al HDMI 3")] = False
+@app.command(help="Change screen input source")
+def inputsource(
+    hdmi1: Annotated[bool, typer.Option(help="Change the input source to HDMI 1")] = False,
+    hdmi2: Annotated[bool, typer.Option(help="Change the input source to HDMI 2")] = False,
+    hdmi3: Annotated[bool, typer.Option(help="Change the input source to HDMI 3")] = False
 ):
     if hdmi1:
         philips_controller.set_input_source("hdmi1")
@@ -82,11 +82,11 @@ def input_source(
         philips_controller.set_input_source("hdmi3")
 
 
-@app.command(help="Cambia el arranque fte del monitor")
-def boot_source(
-    hdmi1: Annotated[bool, typer.Option(help="Cambia el arranque fte al HDMI 1")] = False,
-    hdmi2: Annotated[bool, typer.Option(help="Cambia el arranque fte al HDMI 2")] = False,
-    hdmi3: Annotated[bool, typer.Option(help="Cambia el arranque fte al HDMI 3")] = False
+@app.command(help="Change the source boot of the screen")
+def bootsource(
+    hdmi1: Annotated[bool, typer.Option(help="Change the source boot to HDMI 1")] = False,
+    hdmi2: Annotated[bool, typer.Option(help="Change the source boot to HDMI 2")] = False,
+    hdmi3: Annotated[bool, typer.Option(help="Change the source boot to HDMI 3")] = False
 
 ):
     if hdmi1:
@@ -97,25 +97,25 @@ def boot_source(
         philips_controller.set_boot_source("hdmi3")
 
 
-@app.command(help="Establece el brillo en el monitor")
-def brillo(value: int):
+@app.command(help="Sets the screen brightness")
+def brightness(value: int):
     philips_controller.set_brightness(value)
 
 
-@app.command(help="Establece el contraste en el monitor")
-def contraste(value: int):
+@app.command(help="Sets the screen contrast")
+def contrast(value: int):
     philips_controller.set_contrast(value)
 
 
-@app.command(help="Establece el volumen en el monitor")
+@app.command(help="Sets the screen volume")
 def volume(value: int):
     philips_controller.set_volume(value)
 
 
-@app.command(help="Activa/Desactiva el mute en el monitor")
+@app.command(help="Enable/Disable mute")
 def mute(
-        on: Annotated[bool, typer.Option(help="Activa el mute")] = None,
-        off: Annotated[bool, typer.Option(help="Desactiva el mute")] = None
+        on: Annotated[bool, typer.Option(help="Enable mute")] = None,
+        off: Annotated[bool, typer.Option(help="Disable mute")] = None
 ):
     if on:
         philips_controller.set_mute("on")
@@ -123,15 +123,15 @@ def mute(
         philips_controller.set_mute("off")
 
 
-@app.command(help="Establece el modo de ahorro energético del monitor, valores [1-4]")
-def modoahorro(value: int):
+@app.command(help="Sets the screen power saving mode, values [1-4]")
+def powermode(value: int):
     philips_controller.set_power_saving_mode(value)
 
 
-@app.command(help="Activa/Desactiva el onewire en el monitor")
+@app.command(help="Enable/Disable HDMI One Wire")
 def onewire(
-        on: Annotated[bool, typer.Option(help="Activa el onewire en el monitor")] = None,
-        off: Annotated[bool, typer.Option(help="Desactiva el onewire en el monitor")] = None
+        on: Annotated[bool, typer.Option(help="Enable HDMI One Wire")] = None,
+        off: Annotated[bool, typer.Option(help="Disable HDMI One Wire")] = None
 ):
     if on:
         philips_controller.set_onewire("on")
@@ -139,10 +139,10 @@ def onewire(
         philips_controller.set_onewire("off")
 
 
-@app.command(help="Comandos adicionales para configurar el monitor")
+@app.command(help="Additional commands to configure the screen")
 def options(
-        autosetup: Annotated[bool, typer.Option(help="Aplica la configuración al monitor en función de su modelo")] = None,
-        video_default: Annotated[bool, typer.Option(help="Resetea los valores de vídeo al 50 (brillo, contraste, color, tono, etc.)")] = None,
+        autosetup: Annotated[bool, typer.Option(help="Applies the configuration to the display according to its model")] = None,
+        video_default: Annotated[bool, typer.Option(help="Resets the video values to 50")] = None,
 ):
     if autosetup:
         philips_controller.auto_screen_setup()
