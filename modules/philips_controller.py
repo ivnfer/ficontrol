@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.status import Status
 
+
 class PhilipsController:
     def __init__(self, serial_port, database_path):
         self.serial_port = serial_port
@@ -117,9 +118,9 @@ class PhilipsController:
     def print_screen_last_info(self):
         self.cursor.execute("SELECT * FROM screeninfo")
         rows = self.cursor.fetchall()
-        table = Table(title="Último registro", style="bright_white")
-        table.add_column("[grey89]Párametro", no_wrap=True, style="grey89")
-        table.add_column("[bright_white]Valor", no_wrap=True, style="bright_white")
+        table = Table(title="Last Update", style="bright_white")
+        table.add_column("[grey89]Parameter", no_wrap=True, style="grey89")
+        table.add_column("[bright_white]Value", no_wrap=True, style="bright_white")
 
         for row in rows:
             table.add_row("Model", row[0])
@@ -143,22 +144,22 @@ class PhilipsController:
             table.add_row("Tone", row[18])
             table.add_row("Black Level", row[19])
             table.add_row("Gamma", row[20])
-            table.add_row("Fecha Registro", row[21], style="yellow")
+            table.add_row("Last Update", row[21], style="yellow")
 
         Console().print(table, justify="left")
 
     def print_screen_info(self):
 
-        loading_spinner = Status("Obteniendo información del monitor")
+        loading_spinner = Status("Getting screen info")
 
         loading_spinner.start()
         screen_version = self.get_screen_version()
         screen_settings = self.get_screen_settings()
         loading_spinner.stop()
 
-        table = Table(title="Información Monitor")
-        table.add_column("Parámetro")
-        table.add_column("Valor")
+        table = Table(title="Screen Information")
+        table.add_column("Parameter")
+        table.add_column("Value")
 
         table.add_row('Model', screen_version['model'])
         table.add_row('Serial Number', screen_version['serialnumber'])
@@ -186,7 +187,7 @@ class PhilipsController:
 
     def insert_info_db(self):
 
-        loading_spinner = Status("Guardando datos..")
+        loading_spinner = Status("Saving data")
         loading_spinner.start()
         version = self.get_screen_version()
         settings = self.get_screen_settings()
@@ -215,22 +216,22 @@ class PhilipsController:
             self.cursor.execute(_query)
             return self.cursor.fetchone()[0]
         except TypeError:
-            return "Entrada no registrada en BBDD"
+            return "Hexcode not registered in the database"
 
     def set_power_status(self, power_status: str):
         if power_status.lower() == "on":
-            print("Encendiendo monitor...")
+            print("Turning on monitor...")
             self.send_command(6, 0x06, data0=0x18, data1=0x02)
         elif power_status.lower() == "off":
-            print("Apagando monitor...")
+            print("Turning off monitor...")
             self.send_command(6, 0x06, data0=0x18, data1=0x01)
 
     def set_volume(self, volume: int):
-        print(f"Cambiando volumen a {volume}")
+        print(f"Switching volume to {volume}")
         self.send_command(6, 0x07, data0=0x44, data1=volume, data2=volume)
 
     def set_power_saving_mode(self, power_saving_mode: int):
-        print(f"Cambiando el modo ahorro energético: Modo {power_saving_mode}")
+        print(f"Switching power saving mode to  : Modo {power_saving_mode}")
         if power_saving_mode == 1:
             self.send_command(6, 0x06, data0=0xD2, data1=0x04)
         elif power_saving_mode == 2:
@@ -240,17 +241,17 @@ class PhilipsController:
         elif power_saving_mode == 4:
             self.send_command(6, 0x06, data0=0xD2, data1=0x07)
         else:
-            print("No existe el modo energético indicado")
+            print(f"There is no energy mode with value: {power_saving_mode}")
 
     def set_onewire(self, onewire: str):
-        print(f"Configurando onewire: {onewire}")
+        print(f"Setting up onewire: {onewire}")
         if onewire.lower() == "on":
             self.send_command(6, 0x06, data0=0xBD, data1=0x01)
         elif onewire.lower() == "off":
             self.send_command(6, 0x06, data0=0xBD, data1=0x00)
 
     def set_input_source(self, input_source: str):
-        print(f"Cambiando el input source a: {input_source}")
+        print(f"Changing input source to {input_source}")
         if input_source.lower() == "hdmi1":
             self.send_command(6, 0x09, data0=0xAC, data1=0x0d, data2=0x01, data3=0x01, data4=0x00)
         elif input_source.lower() == "hdmi2":
@@ -259,7 +260,7 @@ class PhilipsController:
             self.send_command(6, 0x09, data0=0xAC, data1=0x0f, data2=0x01, data3=0x01, data4=0x00)
 
     def set_boot_source(self, boot_source: str):
-        print(f"Configurando el boot source: {boot_source}")
+        print(f"Setting up boot source: {boot_source}")
         if boot_source.lower() == "hdmi1":
             self.send_command(6, 0x07, data0=0xbb, data1=0x0d, data2=0x00)
         elif boot_source.lower() == "hdmi2":
@@ -269,14 +270,14 @@ class PhilipsController:
 
     def set_mute(self, mute: str):
         if mute == "on":
-            print("Muteando monitor...")
+            print("Muting screen...")
             self.send_command(6, 0x06, data0=0x47, data1=0x01)
         elif mute == "off":
-            print("Desmuteando monitor...")
+            print("Unmuting screen...")
             self.send_command(6, 0x06, data0=0x47, data1=0x00)
 
     def set_brightness(self, brightness: int):
-        loading_spinner = Status(f"Aplicando brillo con valor {brightness}")
+        loading_spinner = Status(f"Applying brightness with value {brightness}")
         loading_spinner.start()
         screen_settings = self.get_screen_settings()
         try:
@@ -284,45 +285,44 @@ class PhilipsController:
                               data3=screen_settings['contrast'], data4=screen_settings['sharpness'],
                               data5=screen_settings['tone'], data6=screen_settings['black_level'],
                               data7=screen_settings['gamma'])
-            print("Configuración aplicada correctamente")
+            print("Applied settings")
             loading_spinner.stop()
 
         except Exception as err:
-            print(f"No se ha podido modificar el parámetro debido a un error: {err}")
+            print(f"The parameter could not be changed due to an error: {err}")
 
     def set_contrast(self, contrast: int):
-        loading_spinner = Status(f"Aplicando contraste con valor {contrast}")
+        loading_spinner = Status(f"Applying contrast with value {contrast}")
         loading_spinner.start()
         screen_settings = self.get_screen_settings()
         try:
             self.send_command(6, 0x0c, data0=0x32, data1=screen_settings['brightness'], data2=screen_settings['colour'],
                               data3=contrast, data4=screen_settings['sharpness'], data5=screen_settings['tone'],
                               data6=screen_settings['black_level'], data7=screen_settings['gamma'])
-            print("Configuración aplicada correctamente")
+            print("Applied settings")
 
             loading_spinner.stop()
 
         except Exception as err:
-            print(f"No se ha podido modificar el parámetro debido a un error: {err}")
+            print(f"Parameter could not be changed due to error: {err}")
 
     def set_video_default(self):
-        loading_spinner = Status(f"Aplicando los valores de vídeo por defecto")
+        loading_spinner = Status(f"Applying the default video settings")
         loading_spinner.start()
 
         try:
             self.send_command(6, 0x0c, data0=0x32, data1=50, data2=50, data3=50, data4=50, data5=50, data6=50, data7=1)
-            print("Cambios aplicados correctamente")
+            print("Changes correctly applied")
 
             loading_spinner.stop()
         except Exception as error:
-            print(f"Se ha producido un error: {error}")
+            print(f"An error has occurred: {error}")
 
     def auto_screen_setup(self):
-        loading_spinner = Status(f"Configurando monitor")
+        loading_spinner = Status(f"Setting up the monitor")
         loading_spinner.start()
 
         screen_version = self.get_screen_version()
-        screen_settings = self.get_screen_settings()
 
         platform_label = screen_version['platform_label']
 
@@ -342,4 +342,4 @@ class PhilipsController:
         self.send_command(6, 0x06, data0=0xBD, data1=database_onewire)
 
         loading_spinner.stop()
-        print("Configuración aplicada")
+        print("Applied settings")
