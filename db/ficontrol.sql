@@ -1,4 +1,4 @@
-/* Base de datos v2.0*/
+/* Base de datos v2.0 */
 
 CREATE TABLE IF NOT EXISTS screeninfo(
     modelname text,
