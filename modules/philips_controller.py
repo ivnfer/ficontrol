@@ -1,5 +1,3 @@
-import platform
-import sys
 import serial
 import sqlite3
 import os
@@ -7,7 +5,6 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich.status import Status
-
 
 class PhilipsController:
     def __init__(self, serial_port, database_path):
@@ -120,9 +117,9 @@ class PhilipsController:
     def print_screen_last_info(self):
         self.cursor.execute("SELECT * FROM screeninfo")
         rows = self.cursor.fetchall()
-        table = Table(title="Último registro")
-        table.add_column("Párametro")
-        table.add_column("Valor")
+        table = Table(title="Último registro", style="bright_white")
+        table.add_column("[grey89]Párametro", no_wrap=True, style="grey89")
+        table.add_column("[bright_white]Valor", no_wrap=True, style="bright_white")
 
         for row in rows:
             table.add_row("Model", row[0])
@@ -146,7 +143,7 @@ class PhilipsController:
             table.add_row("Tone", row[18])
             table.add_row("Black Level", row[19])
             table.add_row("Gamma", row[20])
-            table.add_row("Fecha Registro", row[21])
+            table.add_row("Fecha Registro", row[21], style="yellow")
 
         Console().print(table, justify="left")
 
@@ -189,7 +186,7 @@ class PhilipsController:
 
     def insert_info_db(self):
 
-        loading_spinner = Status("Insertando datos en la bbdd..")
+        loading_spinner = Status("Guardando datos..")
         loading_spinner.start()
         version = self.get_screen_version()
         settings = self.get_screen_settings()
