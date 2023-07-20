@@ -119,8 +119,8 @@ class PhilipsController:
         self.cursor.execute("SELECT * FROM screeninfo")
         rows = self.cursor.fetchall()
         table = Table(title="Last Update", style="bright_white")
-        table.add_column("[grey89]Párametro", no_wrap=True, style="grey89")
-        table.add_column("[bright_white]Valor", no_wrap=True, style="bright_white")
+        table.add_column("[grey89]Parameter", no_wrap=True, style="grey89")
+        table.add_column("[bright_white]Value", no_wrap=True, style="bright_white")
 
         for row in rows:
             table.add_row("Model", row[0])
