@@ -1,9 +1,7 @@
 # ficontrol
 Philips RS232 remote control
 
-Allows to send commands to philips displays via RS232.
-
-Works on windows (COM3) and linux (/dev/ttyUSB0).
+Allows to send commands to philips displays via RS232. Works on windows (COM3) and linux (/dev/ttyUSB0).
 
 The following operations can be performed:
 
