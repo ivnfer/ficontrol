@@ -53,7 +53,6 @@ class PhilipsController:
 
         except Exception as err:
             print(err)
-            exit(1)
 
     def get_screen_version(self):
         model = self.send_command(15, 0x06, data0=0xA1, data1=0x00)
@@ -63,6 +62,7 @@ class PhilipsController:
         sicp_version = self.send_command(10, 0x06, data0=0xA2, data1=0x00)
         platform_label = self.send_command(13, 0x06, data0=0xA2, data1=0x01)
         platform_version = self.send_command(8, 0x06, data0=0xA2, data1=0x02)
+
         try:
             get_model = bytes.fromhex(model[8:-2]).decode('utf-8')
             get_serialnumber = bytes.fromhex(serialnumber[8:-2]).decode('utf-8')
@@ -80,16 +80,15 @@ class PhilipsController:
             print(error)
 
     def get_screen_settings(self):
-        power_state = self.send_command(6, 0x05, data0=0x19)
-        boot_source = self.send_command(7, 0x05, data0=0xba)
-        input_source = self.send_command(9, 0x05, data0=0xAD)
-        volume = self.send_command(6, 0x05, data0=0x45)
-        mute = self.send_command(6, 0x05, data0=0x46)
-        power_saving_mode = self.send_command(6, 0x05, data0=0xD3)
-        onewire = self.send_command(6, 0x05, data0=0xbc)
-        video_settings = self.send_command(12, 0x0C, data0=0x33, data1=0x37, data2=0x37, data3=0x37, data4=0x37,
-                                           data5=0x37, data6=0x37, data7=0x03)
         try:
+            power_state = self.send_command(6, 0x05, data0=0x19)
+            boot_source = self.send_command(7, 0x05, data0=0xba)
+            input_source = self.send_command(9, 0x05, data0=0xAD)
+            volume = self.send_command(6, 0x05, data0=0x45)
+            mute = self.send_command(6, 0x05, data0=0x46)
+            power_saving_mode = self.send_command(6, 0x05, data0=0xD3)
+            onewire = self.send_command(6, 0x05, data0=0xbc)
+
             get_power_state = self.get_hex_value(power_state[8:10], 6)
             get_boot_source = self.get_hex_value(boot_source[8:10], 1)
             get_input_source = self.get_hex_value(input_source[8:10], 1)
@@ -97,6 +96,18 @@ class PhilipsController:
             get_mute = self.get_hex_value(mute[8:10], 5)
             get_power_saving_mode = self.get_hex_value(power_saving_mode[8:10], 2)
             get_onewire = self.get_hex_value(onewire[8:10], 3)
+
+            return {"power_state": get_power_state, "boot_source": get_boot_source, "input_source": get_input_source,
+                    "volume": get_volume, "mute": get_mute, "power_saving_mode": get_power_saving_mode,
+                    "onewire": get_onewire}
+
+        except Exception as error:
+            print(error)
+
+    def get_screen_video(self):
+        try:
+            video_settings = self.send_command(12, 0x0C, data0=0x33, data1=0x37, data2=0x37, data3=0x37, data4=0x37,
+                                               data5=0x37, data6=0x37, data7=0x03)
 
             get_brightness = int(video_settings[8:10], 16)
             get_colour = int(video_settings[10:12], 16)
@@ -106,14 +117,13 @@ class PhilipsController:
             get_black_level = int(video_settings[18:20], 16)
             get_gamma = int(video_settings[20:22], 16)
 
-            return {"power_state": get_power_state, "boot_source": get_boot_source, "input_source": get_input_source,
-                    "volume": get_volume, "mute": get_mute, "power_saving_mode": get_power_saving_mode,
-                    "onewire": get_onewire, "brightness": get_brightness, "colour": get_colour,
-                    "contrast": get_contrast, "sharpness": get_sharpness, "tone": get_tone,
-                    "black_level": get_black_level, "gamma": get_gamma}
+            return{"brightness": get_brightness, "colour": get_colour, "contrast": get_contrast,
+                   "sharpness": get_sharpness, "tone": get_tone, "black_level": get_black_level, "gamma": get_gamma}
 
-        except Exception as error:
-            print(error)
+        except ValueError:
+            err = "Cant`t read data"
+            return {"brightness": err, "colour": err, "contrast": err,
+                    "sharpness": err, "tone": err, "black_level": err, "gamma": err}
 
     def print_screen_last_info(self):
         self.cursor.execute("SELECT * FROM screeninfo")
@@ -155,11 +165,12 @@ class PhilipsController:
         loading_spinner.start()
         screen_version = self.get_screen_version()
         screen_settings = self.get_screen_settings()
+        screen_video = self.get_screen_video()
         loading_spinner.stop()
 
-        table = Table(title="Screen Information")
-        table.add_column("Parameter")
-        table.add_column("Value")
+        table = Table(title="Screen Information", style="bright_white")
+        table.add_column("[grey89]Parameter", no_wrap=True, style="grey89")
+        table.add_column("[bright_white]Value", no_wrap=True, style="bright_white")
 
         table.add_row('Model', screen_version['model'])
         table.add_row('Serial Number', screen_version['serialnumber'])
@@ -175,13 +186,13 @@ class PhilipsController:
         table.add_row('Mute', screen_settings['mute'])
         table.add_row('Power Saving Mode', screen_settings['power_saving_mode'])
         table.add_row('Onewire', screen_settings['onewire'], end_section=True)
-        table.add_row('Brightness', str(screen_settings['brightness']))
-        table.add_row('Contrast', str(screen_settings['contrast']))
-        table.add_row('Colour', str(screen_settings['colour']))
-        table.add_row('Sharpness', str(screen_settings['sharpness']))
-        table.add_row('Tone', str(screen_settings['tone']))
-        table.add_row('Black level', str(screen_settings['black_level']))
-        table.add_row('Gamma', str(screen_settings['colour']))
+        table.add_row('Brightness', str(screen_video['brightness']))
+        table.add_row('Contrast', str(screen_video['contrast']))
+        table.add_row('Colour', str(screen_video['colour']))
+        table.add_row('Sharpness', str(screen_video['sharpness']))
+        table.add_row('Tone', str(screen_video['tone']))
+        table.add_row('Black level', str(screen_video['black_level']))
+        table.add_row('Gamma', str(screen_video['colour']))
 
         Console().print(table, justify="left")
 
@@ -191,6 +202,7 @@ class PhilipsController:
         loading_spinner.start()
         version = self.get_screen_version()
         settings = self.get_screen_settings()
+        video = self.get_screen_video()
 
         self.cursor.execute("SELECT DATETIME('now', 'localtime')")
         localtime_date = self.cursor.fetchone()[0]
@@ -202,8 +214,8 @@ class PhilipsController:
                   '{version['platform_label']}', '{version['platform_version']}', '{version['sicp_version']}',
                   '{settings['power_state']}', '{settings['boot_source']}', '{settings['input_source']}',
                   '{settings['volume']}', '{settings['mute']}','{settings['power_saving_mode']}',  '{settings['onewire']}',
-                  '{settings['brightness']}', '{settings['colour']}', '{settings['contrast']}', '{settings['sharpness']}',
-                  '{settings['tone']}', '{settings['black_level']}', '{settings['gamma']}', '{localtime_date}'
+                  '{video['brightness']}', '{video['colour']}', '{video['contrast']}', '{video['sharpness']}',
+                  '{video['tone']}', '{video['black_level']}', '{video['gamma']}', '{localtime_date}'
                   )"""
 
         self.cursor.execute(replace_query)
