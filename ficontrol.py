@@ -1,5 +1,5 @@
 # Philips RS232 controller
-# SICP Version 2.07
+# SICP Version v2.07
 from modules.philips_controller import PhilipsController
 import os, sys, platform
 import typer
@@ -7,7 +7,7 @@ from typing_extensions import Annotated
 
 
 app = typer.Typer(add_completion=False)
-VERSION = "v2.3.1 2023/07/26"
+VERSION = "v2.4 2023/07/27"
 
 
 def get_absolute_path():
@@ -47,15 +47,18 @@ def common(
 def status(
         now: Annotated[bool, typer.Option(help="Gets the current information from the screen.")] = False,
         last: Annotated[bool, typer.Option(help="Gets the last recorded status of the screen")] = False,
-        update: Annotated[bool, typer.Option(help="Updates database with the screen information")] = False
+        update: Annotated[bool, typer.Option(help="Updates database with the screen information")] = False,
+        history: Annotated[bool, typer.Option(help="Shows last 7 days records")] = False
 ):
     if now:
         philips_controller.print_screen_info()
-        philips_controller.insert_info_db()
+        philips_controller.add_to_history_table()
     if last:
         philips_controller.print_screen_last_info()
     if update:
-        philips_controller.insert_info_db()
+        philips_controller.add_to_history_table()
+    if history:
+        philips_controller.print_screen_history()
 
 
 @app.command(help="Turns the screen on or off")
@@ -144,11 +147,14 @@ def onewire(
 def options(
         autosetup: Annotated[bool, typer.Option(help="Applies the configuration to the display according to its model")] = None,
         video_default: Annotated[bool, typer.Option(help="Resets the video values to 50")] = None,
+        clean: Annotated[bool, typer.Option(help="Clean all the records stored in database")] = None,
 ):
     if autosetup:
         philips_controller.auto_screen_setup()
     if video_default:
         philips_controller.set_video_default()
+    if clean:
+        philips_controller.clean_history_records()
 
 
 if __name__ == '__main__':

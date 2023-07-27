@@ -126,35 +126,35 @@ class PhilipsController:
                     "sharpness": err, "tone": err, "black_level": err, "gamma": err}
 
     def print_screen_last_info(self):
-        self.cursor.execute("SELECT * FROM screeninfo")
+        self.cursor.execute("SELECT * FROM history_status ORDER BY updated DESC LIMIT 1")
         rows = self.cursor.fetchall()
         table = Table(title="Last Update", style="bright_white")
         table.add_column("[grey89]Parameter", no_wrap=True, style="grey89")
         table.add_column("[bright_white]Value", no_wrap=True, style="bright_white")
 
         for row in rows:
-            table.add_row("Model", row[0])
-            table.add_row("Serial Number", row[1])
-            table.add_row("Firmware", row[2])
-            table.add_row("Build Date", row[3])
-            table.add_row("Platform Label", row[4])
-            table.add_row("Platform Version", row[5])
-            table.add_row("SICP Version", row[6], end_section=True)
-            table.add_row("Power State", row[7])
-            table.add_row("Boot Source", row[8])
-            table.add_row("Input Source", row[9])
-            table.add_row("Volume", row[10])
-            table.add_row("Mute", row[11])
-            table.add_row("Power Saving Mode", row[12])
-            table.add_row("One Wire", row[13], end_section=True)
-            table.add_row("Brightness", row[14])
+            table.add_row("Model", row[1])
+            table.add_row("Serial Number", row[2])
+            table.add_row("Firmware", row[3])
+            table.add_row("Build Date", row[4])
+            table.add_row("Platform Label", row[5])
+            table.add_row("Platform Version", row[6])
+            table.add_row("SICP Version", row[7], end_section=True)
+            table.add_row("Power State", row[8])
+            table.add_row("Boot Source", row[9])
+            table.add_row("Input Source", row[10])
+            table.add_row("Volume", row[11])
+            table.add_row("Mute", row[12])
+            table.add_row("Power Saving Mode", row[13])
+            table.add_row("One Wire", row[14], end_section=True)
+            table.add_row("Brightness", row[15])
             table.add_row("Contrast", row[16])
-            table.add_row("Colour", row[15])
-            table.add_row("Sharpness", row[17])
-            table.add_row("Tone", row[18])
-            table.add_row("Black Level", row[19])
-            table.add_row("Gamma", row[20])
-            table.add_row("Last Update", row[21], style="yellow")
+            table.add_row("Colour", row[17])
+            table.add_row("Sharpness", row[18])
+            table.add_row("Tone", row[19])
+            table.add_row("Black Level", row[20])
+            table.add_row("Gamma", row[21], end_section=True)
+            table.add_row("Last Update", row[22], style="yellow")
 
         Console().print(table, justify="left")
 
@@ -196,18 +196,17 @@ class PhilipsController:
 
         Console().print(table, justify="left")
 
-    def insert_info_db(self):
-
-        loading_spinner = Status("Saving data")
+    def add_to_history_table(self):
+        loading_spinner = Status("Saving historical data")
         loading_spinner.start()
         version = self.get_screen_version()
         settings = self.get_screen_settings()
         video = self.get_screen_video()
 
         self.cursor.execute("SELECT DATETIME('now', 'localtime')")
-        localtime_date = self.cursor.fetchone()[0]
+        localtime = self.cursor.fetchone()[0]
 
-        replace_query = f"""REPLACE INTO screeninfo(modelname, serialnumber, fwversion, build_date, platform_label,
+        insert_query = f"""INSERT INTO history_status (modelname, serialnumber, fwversion, build_date, platform_label,
                  platform_version, sicp_version, powerstatus, bootsource, input, volume, mute, powermode, onewire,
                   brightness, color, contrast, sharpness, tint, black_level, gamma, updated) VALUES 
                   ('{version['model']}','{version['serialnumber']}', '{version['firmware']}', '{version['build_date']}',
@@ -215,16 +214,62 @@ class PhilipsController:
                   '{settings['power_state']}', '{settings['boot_source']}', '{settings['input_source']}',
                   '{settings['volume']}', '{settings['mute']}','{settings['power_saving_mode']}',  '{settings['onewire']}',
                   '{video['brightness']}', '{video['colour']}', '{video['contrast']}', '{video['sharpness']}',
-                  '{video['tone']}', '{video['black_level']}', '{video['gamma']}', '{localtime_date}'
-                  )"""
+                  '{video['tone']}', '{video['black_level']}', '{video['gamma']}', '{localtime}')"""
 
-        self.cursor.execute(replace_query)
+        self.cursor.execute(insert_query)
         self.connection.commit()
         loading_spinner.stop()
 
+    def delete_old_records(self):
+        self.cursor.execute("SELECT DATETIME('now', 'localtime', '-7 day')")
+        limit_date = self.cursor.fetchone()[0]
+
+        delete_query = f"""DELETE from history_status WHERE updated <='{limit_date}'"""
+        self.cursor.execute(delete_query)
+        self.connection.commit()
+
+    def clean_history_records(self):
+        delete_rows = "DELETE FROM history_status"
+        self.cursor.execute(delete_rows)
+
+        delete_rowid = """DELETE FROM sqlite_sequence where name='history_status'"""
+        self.cursor.execute(delete_rowid)
+
+        self.connection.commit()
+
+    def print_screen_history(self):
+
+        select_query = f"""SELECT modelname, serialnumber, powerstatus, bootsource, input, volume, mute, powermode,
+        onewire, brightness, contrast, updated FROM history_status"""
+
+        self.cursor.execute(select_query)
+        rows = self.cursor.fetchall()
+
+        table = Table(title="Last 7 days records", style="bright_white")
+        table.add_column(header="Model", justify="center", no_wrap=True)
+        table.add_column(header="Serial Number", justify="center", no_wrap=True)
+        table.add_column(header="Power", justify="center")
+        table.add_column(header="Boot Source", justify="center")
+        table.add_column(header="Input Source", justify="center")
+        table.add_column(header="Volume", justify="center")
+        table.add_column(header="Mute", justify="center")
+        table.add_column(header="Power Mode", justify="center")
+        table.add_column(header="One Wire", justify="center")
+        table.add_column(header="Brightness", justify="center")
+        table.add_column(header="Constrast", justify="center")
+        table.add_column(header="Update Date", style="yellow", justify="center", no_wrap=True)
+        for row in rows:
+
+            table.add_row(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
+                          row[10], row[11])
+
+        Console().print(table, justify="left")
+
+        self.delete_old_records()
+
     def get_hex_value(self, hexcode, groupid: int):
         try:
-            _query = f"SELECT codename from codigos where hexcode='{hexcode}' and idtype={groupid}"
+            _query = f"SELECT codename from hexcodes where hexcode='{hexcode}' and idtype={groupid}"
             self.cursor.execute(_query)
             return self.cursor.fetchone()[0]
         except TypeError:
