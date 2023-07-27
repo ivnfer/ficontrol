@@ -1,4 +1,5 @@
 # Philips RS232 controller
+# SICP Version 2.07
 from modules.philips_controller import PhilipsController
 import os, sys, platform
 import typer
@@ -6,7 +7,7 @@ from typing_extensions import Annotated
 
 
 app = typer.Typer(add_completion=False)
-VERSION = "v2.4 2023/07/13"
+VERSION = "v2.3.1 2023/07/26"
 
 
 def get_absolute_path():
@@ -46,14 +47,14 @@ def common(
 def status(
         now: Annotated[bool, typer.Option(help="Gets the current information from the screen.")] = False,
         last: Annotated[bool, typer.Option(help="Gets the last recorded status of the screen")] = False,
-        updateinfo: Annotated[bool, typer.Option(help="Updates database with the screen information")] = False
+        update: Annotated[bool, typer.Option(help="Updates database with the screen information")] = False
 ):
     if now:
         philips_controller.print_screen_info()
         philips_controller.insert_info_db()
     if last:
         philips_controller.print_screen_last_info()
-    if updateinfo:
+    if update:
         philips_controller.insert_info_db()
 
 
