@@ -1,3 +1,5 @@
+import sys
+
 import serial
 import sqlite3
 import os
@@ -53,6 +55,7 @@ class PhilipsController:
 
         except Exception as err:
             print(err)
+            sys.exit(1)
 
     def get_screen_version(self):
         model = self.send_command(15, 0x06, data0=0xA1, data1=0x00)
@@ -79,7 +82,7 @@ class PhilipsController:
         except Exception as error:
             print(error)
 
-    def get_screen_settings(self):
+    def get_video_settings(self):
         try:
             power_state = self.send_command(6, 0x05, data0=0x19)
             boot_source = self.send_command(7, 0x05, data0=0xba)
@@ -164,7 +167,7 @@ class PhilipsController:
 
         loading_spinner.start()
         screen_version = self.get_screen_version()
-        screen_settings = self.get_screen_settings()
+        video_settings = self.get_video_settings()
         screen_video = self.get_screen_video()
         loading_spinner.stop()
 
@@ -179,13 +182,13 @@ class PhilipsController:
         table.add_row('Platform Label', screen_version['platform_label'])
         table.add_row('Platform Version', screen_version['platform_version'])
         table.add_row('SICP Version', screen_version['sicp_version'], end_section=True)
-        table.add_row("Power State", screen_settings['power_state'])
-        table.add_row('Boot Source', screen_settings['boot_source'])
-        table.add_row('Input Source', screen_settings['input_source'])
-        table.add_row('Volume', str(screen_settings['volume']))
-        table.add_row('Mute', screen_settings['mute'])
-        table.add_row('Power Saving Mode', screen_settings['power_saving_mode'])
-        table.add_row('Onewire', screen_settings['onewire'], end_section=True)
+        table.add_row("Power State", video_settings['power_state'])
+        table.add_row('Boot Source', video_settings['boot_source'])
+        table.add_row('Input Source', video_settings['input_source'])
+        table.add_row('Volume', str(video_settings['volume']))
+        table.add_row('Mute', video_settings['mute'])
+        table.add_row('Power Saving Mode', video_settings['power_saving_mode'])
+        table.add_row('Onewire', video_settings['onewire'], end_section=True)
         table.add_row('Brightness', str(screen_video['brightness']))
         table.add_row('Contrast', str(screen_video['contrast']))
         table.add_row('Colour', str(screen_video['colour']))
@@ -200,7 +203,7 @@ class PhilipsController:
         loading_spinner = Status("Saving historical data")
         loading_spinner.start()
         version = self.get_screen_version()
-        settings = self.get_screen_settings()
+        settings = self.get_video_settings()
         video = self.get_screen_video()
 
         self.cursor.execute("SELECT DATETIME('now', 'localtime')")
@@ -246,8 +249,7 @@ class PhilipsController:
         rows = self.cursor.fetchall()
 
         table = Table(title="Last 7 days records", style="bright_white")
-        table.add_column(header="Model", justify="center", no_wrap=True)
-        table.add_column(header="Serial Number", justify="center", no_wrap=True)
+        table.add_column(header="Date", style="yellow", justify="center", no_wrap=True)
         table.add_column(header="Power", justify="center")
         table.add_column(header="Boot Source", justify="center")
         table.add_column(header="Input Source", justify="center")
@@ -257,11 +259,10 @@ class PhilipsController:
         table.add_column(header="One Wire", justify="center")
         table.add_column(header="Brightness", justify="center")
         table.add_column(header="Constrast", justify="center")
-        table.add_column(header="Update Date", style="yellow", justify="center", no_wrap=True)
         for row in rows:
 
-            table.add_row(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
-                          row[10], row[11])
+            table.add_row(row[11], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
+                          row[10])
 
         Console().print(table, justify="left")
 
@@ -336,12 +337,12 @@ class PhilipsController:
     def set_brightness(self, brightness: int):
         loading_spinner = Status(f"Applying brightness with value {brightness}")
         loading_spinner.start()
-        screen_settings = self.get_screen_settings()
+        video_settings = self.get_screen_video()
         try:
-            self.send_command(6, 0x0c, data0=0x32, data1=brightness, data2=screen_settings['colour'],
-                              data3=screen_settings['contrast'], data4=screen_settings['sharpness'],
-                              data5=screen_settings['tone'], data6=screen_settings['black_level'],
-                              data7=screen_settings['gamma'])
+            self.send_command(6, 0x0c, data0=0x32, data1=brightness, data2=video_settings['colour'],
+                              data3=video_settings['contrast'], data4=video_settings['sharpness'],
+                              data5=video_settings['tone'], data6=video_settings['black_level'],
+                              data7=video_settings['gamma'])
             print("Applied settings")
             loading_spinner.stop()
 
@@ -351,11 +352,12 @@ class PhilipsController:
     def set_contrast(self, contrast: int):
         loading_spinner = Status(f"Applying contrast with value {contrast}")
         loading_spinner.start()
-        screen_settings = self.get_screen_settings()
+        video_settings = self.get_screen_video()
         try:
-            self.send_command(6, 0x0c, data0=0x32, data1=screen_settings['brightness'], data2=screen_settings['colour'],
-                              data3=contrast, data4=screen_settings['sharpness'], data5=screen_settings['tone'],
-                              data6=screen_settings['black_level'], data7=screen_settings['gamma'])
+            self.send_command(6, 0x0c, data0=0x32, data1=video_settings['brightness'],
+                              data2=video_settings['colour'], data3=contrast, data4=video_settings['sharpness'],
+                              data5=video_settings['tone'], data6=video_settings['black_level'],
+                              data7=video_settings['gamma'])
             print("Applied settings")
 
             loading_spinner.stop()

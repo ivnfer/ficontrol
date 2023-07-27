@@ -1,29 +1,4 @@
-/* Base de datos v2.4 */
-
-/* CREATE TABLE IF NOT EXISTS screeninfo(
-    modelname text,
-    serialnumber text UNIQUE,
-    fwversion text,
-    build_date text,
-    platform_label text,
-    platform_version text,
-    sicp_version text,
-    powerstatus text,
-    bootsource text,
-    input text,
-    volume text,
-    mute text,
-    powermode text,
-    onewire text,
-    brightness text,
-    color text,
-    contrast text,
-    sharpness text,
-    tint text,
-    black_level text,
-    gamma text,
-    updated date
-);*/
+/* Base de datos ficontrol v2.4 */
 
 CREATE TABLE IF NOT EXISTS screenconfig(
     id integer primary key autoincrement,
