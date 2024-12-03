@@ -101,7 +101,7 @@ To send commands throught ip the option <code>--ip</code> must be used. For exam
 
 ```
 
-To check how works a specific command just add <code>--help</code> after the argument, for example:
+To check how to use a specific command just add <code>--help</code> after the argument, for example:
 ```text
 ❯ phicontrol status --help
                                                                                                                                                                                                                                                                                                                     
