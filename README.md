@@ -1,11 +1,14 @@
 # Philips RS232 Control
 RS232 control script for Philips displays
 
-Allows to send commands to philips displays via RS232. Works on windows (COM3) and linux (/dev/ttyUSB0).
+Allows to send commands to philips displays using RS232 protocol. Works on windows and linux.
+
+
+## How it works
 
 The following actions can be performed:
 
-```
+```text
 X:\path\to\script> python phicontrol.py --help
 
 Usage: phicontrol.py [OPTIONS] COMMAND [ARGS]...
@@ -29,4 +32,37 @@ Usage: phicontrol.py [OPTIONS] COMMAND [ARGS]...
 ╰─────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
+
+To check how works a specific command just add <code>--help</code> after the argument, for example:
+```text
+phicontrol status --help
+                                                                                                                                                                                                                                                                                                                    
+ Usage: phicontrol status [OPTIONS]                                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                                                                                    
+ Get screen info/status                                                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                                                                                    
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --now       --no-now         Gets the current information from the screen. [default: no-now]                                                                                                                                                                                                                     │
+│ --last      --no-last        Gets the last recorded status of the screen [default: no-last]                                                                                                                                                                                                                      │
+│ --update    --no-update      Updates database with the screen information [default: no-update]                                                                                                                                                                                                                   │
+│ --log       --no-log         Shows last 7 days logs [default: no-log]                                                                                                                                                                                                                                            │
+│ --help                       Show this message and exit.                                                                                                                                                                                                                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+```
+
+### Settings
+Serial ports can be changed editing the <code>db/phicontrol.yaml</code> file:
+
+```yaml
+# Linux serial port
+# If RS232 is connected throught USB port: /dev/ttyUSB0
+# If RS232 is connected throught serial port: /dev/ttyS0
+linux_serial_port: /dev/ttyUSB0
+
+
+# Windows serial port
+# Select the COM port where RS232 is connected.
+windows_serial_port: COM3
+```
 
