@@ -1,19 +1,26 @@
 # Philips RS232 controller
 # SICP Version v2.07
+from pygments.lexer import default
+
 from modules.philips_controller import PhilipsController
 from modules import functions as f
 import typer
 from typing_extensions import Annotated
 import os
 
-app = typer.Typer(add_completion=False)
-VERSION = "v2.5.2 2024/12/03"
+app = typer.Typer(add_completion=False, rich_markup_mode="markdown")
+VERSION = "v2.6.0 20241203"
 
 db_folder = os.path.join(f.get_absolute_path(), "db")
 yaml_file = os.path.join(f.get_absolute_path(), "db/phicontrol.yaml")
 
-philips_controller = PhilipsController(serial_port=f.check_system_serial_port(yaml_file), database_path=db_folder)
+
+philips_controller = PhilipsController(config=yaml_file, database_path=db_folder)
 philips_controller.check_if_database_exist()
+
+def ip_callback(ip: str):
+    if ip is not None:
+        philips_controller.ip = ip
 
 
 def version_callback(value: bool):
@@ -21,17 +28,18 @@ def version_callback(value: bool):
         print(f"Philips RS232 Control {VERSION}")
         raise typer.Exit()
 
-
 @app.callback()
 def common(
         ctx: typer.Context,
-        _version: bool = typer.Option(None, "--version", callback=version_callback, help="Displays script version")):
+        ip: str = typer.Option(None, callback=ip_callback, help="**IP** address or **hostname**", metavar="IP_ADDRESS"),
+        _version: bool = typer.Option(None, "--version", callback=version_callback, help="Displays script version")
+):
     pass
 
 
 @app.command(help="Get screen info/status")
 def status(
-        now: Annotated[bool, typer.Option(help="Gets the current information from the screen.")] = False,
+        now: Annotated[bool, typer.Option(help="Gets the current information from the screen")] = False,
         last: Annotated[bool, typer.Option(help="Gets the last recorded status of the screen")] = False,
         update: Annotated[bool, typer.Option(help="Updates database with the screen information")] = False,
         log: Annotated[bool, typer.Option(help="Shows last 7 days logs")] = False

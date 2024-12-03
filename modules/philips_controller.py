@@ -7,12 +7,14 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich.status import Status
-
+from modules import functions as f
 
 
 class PhilipsController:
-    def __init__(self, serial_port, database_path):
-        self.serial_port = serial_port
+    def __init__(self, config, database_path, ip=None):
+        self.config = f.read_yaml_config_file(config)
+        self.serial_port = f.check_system_serial_port(config)
+        self.ip = ip
         self.control = 0x01
         self.group = 0x00
 
@@ -27,7 +29,7 @@ class PhilipsController:
             os.mkdir(self.database_path)
 
 
-    def send_command(self, _timeout, message_size, ip=None, port=5000,  **kwargs):
+    def send_command(self, _timeout, message_size, **kwargs):
         try:
 
             data_dictionary = {}
@@ -45,14 +47,14 @@ class PhilipsController:
                 command += chr(data_dictionary[value])
 
             command += chr(checksum)  # Añade al comando el checksum calculado
-            if ip is not None:
+            if self.ip is not None:
                 soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                soc.settimeout(5)
-                soc.connect((ip, port))
+                soc.settimeout(self.config["tcp"]["timeout"])
+                soc.connect((self.ip, int(self.config["tcp"]["port"])))
                 soc.send(command.encode('latin1'))
                 response = soc.recv(1024)
                 soc.close()
-                return response
+                return response.hex()
 
             else:
                 ser = serial.Serial(self.serial_port)
