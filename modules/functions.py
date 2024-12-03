@@ -16,8 +16,8 @@ def check_system_serial_port(config_file):
         config = yaml.safe_load(file)
         sys_platform = platform.system().lower()
 
-        linux_port = config["linux_serial_port"]
-        windows_port = config["windows_serial_port"]
+        linux_port = config["rs232"]["linux_serial_port"]
+        windows_port = config["rs232"]["windows_serial_port"]
 
         if sys_platform == "windows":
             return windows_port

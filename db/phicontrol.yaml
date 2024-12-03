@@ -1,9 +1,0 @@
-# Linux serial port
-# If RS232 is connected throught USB port: /dev/ttyUSB0
-# If RS232 is connected throught serial port: /dev/ttyS0
-linux_serial_port: /dev/ttyUSB0
-
-
-# Windows serial port
-# Select the COM port where RS232 is connected.
-windows_serial_port: COM3
