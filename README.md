@@ -42,7 +42,7 @@ If no IP is given it will try to connect to the screen using RS232 trought the s
 ┃ Parameter         ┃ Value          ┃                                                                                                           
 ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩                                                                                                           
 │ Model             │ 32BDL3550Q     │                                                                                                           
-│ Serial Number     │ AU0A2138002852 │                                                                                                           
+│ Serial Number     │ AU0AXXXXXXXXXX │                                                                                                           
 │ Firmware          │ FB02.07        │                                                                                                           
 │ Build Date        │ 11/29/2022     │                                                                                                           
 │ Platform Label    │ BDL3550Q       │                                                                                                           
@@ -75,7 +75,7 @@ To send commands throught ip the option <code>--ip</code> must be used. For exam
 ┃ Parameter         ┃ Value          ┃                                                                                                           
 ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩                                                                                                           
 │ Model             │ 32BDL3550Q     │                                                                                                           
-│ Serial Number     │ AU0A2138002852 │                                                                                                           
+│ Serial Number     │ AU0AXXXXXXXXXX │                                                                                                           
 │ Firmware          │ FB02.07        │                                                                                                           
 │ Build Date        │ 11/29/2022     │                                                                                                           
 │ Platform Label    │ BDL3550Q       │                                                                                                           
