@@ -16,7 +16,7 @@ class PhilipsController:
         self.group = 0x00
 
         self.database_path = Path(database_path)
-        self.connection = sqlite3.connect(f"{self.database_path}/ficontrol.db")
+        self.connection = sqlite3.connect(f"{self.database_path}/control.db")
         self.cursor = self.connection.cursor()
 
     def check_if_database_exist(self):

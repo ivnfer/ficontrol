@@ -1,14 +1,14 @@
-# ficontrol
-RS232 control script for philips displays
+# Philips RS232 Control
+RS232 control script for Philips displays
 
 Allows to send commands to philips displays via RS232. Works on windows (COM3) and linux (/dev/ttyUSB0).
 
-The following operations can be performed:
+The following actions can be performed:
 
 ```
-X:\path\to\script> python ficontrol.py --help
+X:\path\to\script> python phicontrol.py --help
 
-Usage: ficontrol.py [OPTIONS] COMMAND [ARGS]...
+Usage: phicontrol.py [OPTIONS] COMMAND [ARGS]...
 
 ╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────╮
 │ --version          Displays script version                                                          │
@@ -28,3 +28,5 @@ Usage: ficontrol.py [OPTIONS] COMMAND [ARGS]...
 │ volume               Sets the screen volume                                                         │
 ╰─────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+
+

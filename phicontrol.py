@@ -32,7 +32,7 @@ philips_controller.check_if_database_exist()
 
 def version_callback(value: bool):
     if value:
-        print(f"ficontrol {VERSION}")
+        print(f"Philips RS232 Control {VERSION}")
         raise typer.Exit()
 
 
