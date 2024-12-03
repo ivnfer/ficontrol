@@ -1,5 +1,5 @@
 # Philips RS232 Control
-RS232 control script for Philips displays
+RS232/TCP control cli tool for Philips SICP displays.
 
 Allows to send commands to philips displays using RS232 protocol. Works on windows and linux.
 
