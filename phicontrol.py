@@ -1,32 +1,18 @@
 # Philips RS232 controller
 # SICP Version v2.07
 from modules.philips_controller import PhilipsController
-import os, sys, platform
+from modules import functions as f
 import typer
 from typing_extensions import Annotated
-
+import os
 
 app = typer.Typer(add_completion=False)
-VERSION = "v2.4 2023/07/27"
+VERSION = "v2.5.2 2024/12/03"
 
+db_folder = os.path.join(f.get_absolute_path(), "db")
+yaml_file = os.path.join(f.get_absolute_path(), "db/phicontrol.yaml")
 
-def get_absolute_path():
-    if getattr(sys, 'frozen', False):
-        return os.path.realpath(os.path.dirname(sys.executable))
-    else:
-        return os.path.realpath(os.path.dirname(__file__))
-
-
-def check_system_serial_port():
-    if platform.system().lower() == "windows":
-        return "COM3"
-    else:
-        return "/dev/ttyUSB0"
-
-
-philips_controller = PhilipsController(serial_port=check_system_serial_port(),
-                                       database_path=f"{get_absolute_path()}/db")
-
+philips_controller = PhilipsController(serial_port=f.check_system_serial_port(yaml_file), database_path=db_folder)
 philips_controller.check_if_database_exist()
 
 
@@ -43,12 +29,12 @@ def common(
     pass
 
 
-@app.command(help="Obtains information from the screen")
+@app.command(help="Get screen info/status")
 def status(
         now: Annotated[bool, typer.Option(help="Gets the current information from the screen.")] = False,
         last: Annotated[bool, typer.Option(help="Gets the last recorded status of the screen")] = False,
         update: Annotated[bool, typer.Option(help="Updates database with the screen information")] = False,
-        history: Annotated[bool, typer.Option(help="Shows last 7 days records")] = False
+        log: Annotated[bool, typer.Option(help="Shows last 7 days logs")] = False
 ):
     if now:
         philips_controller.print_screen_info()
@@ -57,11 +43,11 @@ def status(
         philips_controller.print_screen_last_info()
     if update:
         philips_controller.add_to_history_table()
-    if history:
+    if log:
         philips_controller.print_screen_history()
 
 
-@app.command(help="Turns the screen on or off")
+@app.command(help="Turns the screen on/off")
 def power(
         on: Annotated[bool, typer.Option(help="Turn on screen")] = False,
         off: Annotated[bool, typer.Option(help="Turn off screen")] = False
@@ -86,11 +72,11 @@ def inputsource(
         philips_controller.set_input_source("hdmi3")
 
 
-@app.command(help="Change the source boot of the screen")
+@app.command(help="Change the boot source")
 def bootsource(
-    hdmi1: Annotated[bool, typer.Option(help="Change the source boot to HDMI 1")] = False,
-    hdmi2: Annotated[bool, typer.Option(help="Change the source boot to HDMI 2")] = False,
-    hdmi3: Annotated[bool, typer.Option(help="Change the source boot to HDMI 3")] = False
+    hdmi1: Annotated[bool, typer.Option(help="Change the boot source to HDMI 1")] = False,
+    hdmi2: Annotated[bool, typer.Option(help="Change the boot source to HDMI 2")] = False,
+    hdmi3: Annotated[bool, typer.Option(help="Change the boot source to HDMI 3")] = False
 
 ):
     if hdmi1:
@@ -101,17 +87,17 @@ def bootsource(
         philips_controller.set_boot_source("hdmi3")
 
 
-@app.command(help="Sets the screen brightness")
+@app.command(help="Change screen brightness")
 def brightness(value: int):
     philips_controller.set_brightness(value)
 
 
-@app.command(help="Sets the screen contrast")
+@app.command(help="Change screen contrast")
 def contrast(value: int):
     philips_controller.set_contrast(value)
 
 
-@app.command(help="Sets the screen volume")
+@app.command(help="Change screen volume")
 def volume(value: int):
     philips_controller.set_volume(value)
 
@@ -127,7 +113,7 @@ def mute(
         philips_controller.set_mute("off")
 
 
-@app.command(help="Sets the screen power saving mode, values [1-4]")
+@app.command(help="Change screen power saving mode, values [1-4]")
 def powermode(value: int):
     philips_controller.set_power_saving_mode(value)
 

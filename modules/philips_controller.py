@@ -1,5 +1,5 @@
 import sys
-
+import socket
 import serial
 import sqlite3
 import os
@@ -7,6 +7,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich.status import Status
+
 
 
 class PhilipsController:
@@ -25,12 +26,9 @@ class PhilipsController:
         else:
             os.mkdir(self.database_path)
 
-    def send_command(self, timeout, message_size, **kwargs):
+
+    def send_command(self, _timeout, message_size, ip=None, port=5000,  **kwargs):
         try:
-            ser = serial.Serial(self.serial_port)
-            ser.baudrate = 9600
-            ser.bytesize = 8
-            ser.timeout = 5
 
             data_dictionary = {}
             command = chr(message_size) + chr(self.control) + chr(self.group)
@@ -46,12 +44,34 @@ class PhilipsController:
             for value in data_dictionary:  # Suma los valores añadidos en el kwargs al comando que se va a enviar
                 command += chr(data_dictionary[value])
 
-            command += chr(checksum)  # Añade al comando el checsum calculado
+            command += chr(checksum)  # Añade al comando el checksum calculado
+            if ip is not None:
+                soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                soc.settimeout(5)
+                soc.connect((ip, port))
+                soc.send(command.encode('latin1'))
+                response = soc.recv(1024)
+                soc.close()
+                return response
 
-            ser.write(bytes(command, "latin1"))
-            response = ser.read(timeout)
-            ser.close()
-            return response.hex()
+            else:
+                ser = serial.Serial(self.serial_port)
+                ser.baudrate = 9600
+                ser.bytesize = 8
+                ser.timeout = 5
+
+                ser.write(bytes(command, "latin1"))
+                response = ser.read(_timeout)
+                ser.close()
+                return response.hex()
+
+        except ValueError:
+            print("Value Error")
+            return b"0".hex()
+
+        except serial.SerialException as e:
+            print(f"Serial Error: {e}")
+            sys.exit(1)
 
         except Exception as err:
             print(err)
@@ -82,20 +102,25 @@ class PhilipsController:
         except Exception as error:
             print(error)
 
-    def get_video_settings(self):
+    def get_screen_settings(self):
         try:
             power_state = self.send_command(6, 0x05, data0=0x19)
-            boot_source = self.send_command(7, 0x05, data0=0xba)
+            boot_source = self.send_command(7, 0x05, data0=0xba)  # Necesaria versión SICP v2.05
             input_source = self.send_command(9, 0x05, data0=0xAD)
             volume = self.send_command(6, 0x05, data0=0x45)
             mute = self.send_command(6, 0x05, data0=0x46)
             power_saving_mode = self.send_command(6, 0x05, data0=0xD3)
-            onewire = self.send_command(6, 0x05, data0=0xbc)
+            onewire = self.send_command(6, 0x05, data0=0xbc)  # Necesaria versión SICP v2.07
 
             get_power_state = self.get_hex_value(power_state[8:10], 6)
             get_boot_source = self.get_hex_value(boot_source[8:10], 1)
             get_input_source = self.get_hex_value(input_source[8:10], 1)
-            get_volume = int(volume[8:10], 16)
+
+            try:
+                get_volume = int(volume[8:10], 16)
+            except ValueError:
+                get_volume = "Cant`t read data"
+
             get_mute = self.get_hex_value(mute[8:10], 5)
             get_power_saving_mode = self.get_hex_value(power_saving_mode[8:10], 2)
             get_onewire = self.get_hex_value(onewire[8:10], 3)
@@ -120,7 +145,7 @@ class PhilipsController:
             get_black_level = int(video_settings[18:20], 16)
             get_gamma = int(video_settings[20:22], 16)
 
-            return{"brightness": get_brightness, "colour": get_colour, "contrast": get_contrast,
+            return {"brightness": get_brightness, "colour": get_colour, "contrast": get_contrast,
                    "sharpness": get_sharpness, "tone": get_tone, "black_level": get_black_level, "gamma": get_gamma}
 
         except ValueError:
@@ -131,7 +156,7 @@ class PhilipsController:
     def print_screen_last_info(self):
         self.cursor.execute("SELECT * FROM history_status ORDER BY updated DESC LIMIT 1")
         rows = self.cursor.fetchall()
-        table = Table(title="Last Update", style="bright_white")
+        table = Table(title="Última actualización", style="bright_white")
         table.add_column("[grey89]Parameter", no_wrap=True, style="grey89")
         table.add_column("[bright_white]Value", no_wrap=True, style="bright_white")
 
@@ -163,15 +188,15 @@ class PhilipsController:
 
     def print_screen_info(self):
 
-        loading_spinner = Status("Getting screen info")
+        loading_spinner = Status("Getting screen data...")
 
         loading_spinner.start()
         screen_version = self.get_screen_version()
-        video_settings = self.get_video_settings()
+        video_settings = self.get_screen_settings()
         screen_video = self.get_screen_video()
         loading_spinner.stop()
 
-        table = Table(title="Screen Information", style="bright_white")
+        table = Table(title="Sreen Info", style="bright_white")
         table.add_column("[grey89]Parameter", no_wrap=True, style="grey89")
         table.add_column("[bright_white]Value", no_wrap=True, style="bright_white")
 
@@ -200,10 +225,10 @@ class PhilipsController:
         Console().print(table, justify="left")
 
     def add_to_history_table(self):
-        loading_spinner = Status("Saving historical data")
+        loading_spinner = Status("Saving data...")
         loading_spinner.start()
         version = self.get_screen_version()
-        settings = self.get_video_settings()
+        settings = self.get_screen_settings()
         video = self.get_screen_video()
 
         self.cursor.execute("SELECT DATETIME('now', 'localtime')")
@@ -232,6 +257,7 @@ class PhilipsController:
         self.connection.commit()
 
     def clean_history_records(self):
+        # noinspection SqlWithoutWhere
         delete_rows = "DELETE FROM history_status"
         self.cursor.execute(delete_rows)
 
@@ -248,7 +274,7 @@ class PhilipsController:
         self.cursor.execute(select_query)
         rows = self.cursor.fetchall()
 
-        table = Table(title="Last 7 days records", style="bright_white")
+        table = Table(title="Last 7 days log", style="bright_white")
         table.add_column(header="Date", style="yellow", justify="center", no_wrap=True)
         table.add_column(header="Power", justify="center")
         table.add_column(header="Boot Source", justify="center")
@@ -274,22 +300,22 @@ class PhilipsController:
             self.cursor.execute(_query)
             return self.cursor.fetchone()[0]
         except TypeError:
-            return "Hexcode not registered in the database"
+            return "Hexcode not found"
 
     def set_power_status(self, power_status: str):
         if power_status.lower() == "on":
-            print("Turning on monitor...")
+            print("Sending command...")
             self.send_command(6, 0x06, data0=0x18, data1=0x02)
         elif power_status.lower() == "off":
-            print("Turning off monitor...")
+            print("Sending command...")
             self.send_command(6, 0x06, data0=0x18, data1=0x01)
 
     def set_volume(self, volume: int):
-        print(f"Switching volume to {volume}")
+        print(f"Setting volume: {volume}")
         self.send_command(6, 0x07, data0=0x44, data1=volume, data2=volume)
 
     def set_power_saving_mode(self, power_saving_mode: int):
-        print(f"Switching power saving mode to  : Modo {power_saving_mode}")
+        print(f"Setting power saving mode {power_saving_mode}")
         if power_saving_mode == 1:
             self.send_command(6, 0x06, data0=0xD2, data1=0x04)
         elif power_saving_mode == 2:
@@ -299,17 +325,17 @@ class PhilipsController:
         elif power_saving_mode == 4:
             self.send_command(6, 0x06, data0=0xD2, data1=0x07)
         else:
-            print(f"There is no energy mode with value: {power_saving_mode}")
+            print(f"Power saving mode {power_saving_mode} not exists")
 
     def set_onewire(self, onewire: str):
-        print(f"Setting up onewire: {onewire}")
+        print(f"Setting onewire: {onewire}")
         if onewire.lower() == "on":
             self.send_command(6, 0x06, data0=0xBD, data1=0x01)
         elif onewire.lower() == "off":
             self.send_command(6, 0x06, data0=0xBD, data1=0x00)
 
     def set_input_source(self, input_source: str):
-        print(f"Changing input source to {input_source}")
+        print(f"Setting input source {input_source}")
         if input_source.lower() == "hdmi1":
             self.send_command(6, 0x09, data0=0xAC, data1=0x0d, data2=0x01, data3=0x01, data4=0x00)
         elif input_source.lower() == "hdmi2":
@@ -318,7 +344,7 @@ class PhilipsController:
             self.send_command(6, 0x09, data0=0xAC, data1=0x0f, data2=0x01, data3=0x01, data4=0x00)
 
     def set_boot_source(self, boot_source: str):
-        print(f"Setting up boot source: {boot_source}")
+        print(f"Setting boot source: {boot_source}")
         if boot_source.lower() == "hdmi1":
             self.send_command(6, 0x07, data0=0xbb, data1=0x0d, data2=0x00)
         elif boot_source.lower() == "hdmi2":
@@ -328,14 +354,14 @@ class PhilipsController:
 
     def set_mute(self, mute: str):
         if mute == "on":
-            print("Muting screen...")
+            print("Sending command...")
             self.send_command(6, 0x06, data0=0x47, data1=0x01)
         elif mute == "off":
-            print("Unmuting screen...")
+            print("Sending command...")
             self.send_command(6, 0x06, data0=0x47, data1=0x00)
 
     def set_brightness(self, brightness: int):
-        loading_spinner = Status(f"Applying brightness with value {brightness}")
+        loading_spinner = Status(f"Setting brightness: {brightness}")
         loading_spinner.start()
         video_settings = self.get_screen_video()
         try:
@@ -347,10 +373,10 @@ class PhilipsController:
             loading_spinner.stop()
 
         except Exception as err:
-            print(f"The parameter could not be changed due to an error: {err}")
+            print(f"Error: {err}")
 
     def set_contrast(self, contrast: int):
-        loading_spinner = Status(f"Applying contrast with value {contrast}")
+        loading_spinner = Status(f"Setting contrast: {contrast}")
         loading_spinner.start()
         video_settings = self.get_screen_video()
         try:
@@ -363,22 +389,22 @@ class PhilipsController:
             loading_spinner.stop()
 
         except Exception as err:
-            print(f"Parameter could not be changed due to error: {err}")
+            print(f"Error: {err}")
 
     def set_video_default(self):
-        loading_spinner = Status(f"Applying the default video settings")
+        loading_spinner = Status(f"Settings default video settings...")
         loading_spinner.start()
 
         try:
             self.send_command(6, 0x0c, data0=0x32, data1=50, data2=50, data3=50, data4=50, data5=50, data6=50, data7=1)
-            print("Changes correctly applied")
+            print("Settings applied")
 
             loading_spinner.stop()
         except Exception as error:
-            print(f"An error has occurred: {error}")
+            print(f"Error: {error}")
 
     def auto_screen_setup(self):
-        loading_spinner = Status(f"Setting up the monitor")
+        loading_spinner = Status(f"Setting up monitor")
         loading_spinner.start()
 
         screen_version = self.get_screen_version()
@@ -390,15 +416,19 @@ class PhilipsController:
         database_power_saving_mode = 0
         database_onewire = 0
 
-        self.cursor.execute(f"""SELECT * from screenconfig WHERE platform= '{platform_label}'""")
+        self.cursor.execute(f"""SELECT * from screenconfig WHERE platform='{platform_label}'""")
         rows = self.cursor.fetchall()
-        for row in rows:
-            database_power_saving_mode = int(row[3], 16)
-            database_onewire = int(row[4], 16)
+        if rows:
+            for row in rows:
+                database_power_saving_mode = int(row[3], 16)
+                database_onewire = int(row[4], 16)
 
-        self.send_command(6, 0x07, data0=0xbb, data1=int(current_input_source[8:10], 16), data2=0x00)
-        self.send_command(6, 0x06, data0=0xD2, data1=database_power_saving_mode)
-        self.send_command(6, 0x06, data0=0xBD, data1=database_onewire)
+            self.send_command(6, 0x07, data0=0xbb, data1=int(current_input_source[8:10], 16), data2=0x00)
+            self.send_command(6, 0x06, data0=0xD2, data1=database_power_saving_mode)
+            self.send_command(6, 0x06, data0=0xBD, data1=database_onewire)
+            print("Applied settings")
+
+        else:
+            print(f"Monitor settings not found: {platform_label}")
 
         loading_spinner.stop()
-        print("Applied settings")
