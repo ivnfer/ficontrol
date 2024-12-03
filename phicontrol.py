@@ -11,8 +11,8 @@ import os
 app = typer.Typer(add_completion=False, rich_markup_mode="markdown")
 VERSION = "v2.6.0 20241203"
 
-db_folder = os.path.join(f.get_absolute_path(), "db")
-yaml_file = os.path.join(f.get_absolute_path(), "db/phicontrol.yaml")
+db_folder = os.path.join(f.get_absolute_path(), "data")
+yaml_file = os.path.join(f.get_absolute_path(), "data/config.yaml")
 
 
 philips_controller = PhilipsController(config=yaml_file, database_path=db_folder)

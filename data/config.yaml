@@ -11,4 +11,5 @@ rs232:
 tcp:
   # TCP port, default 5000
   port: 5000
+  # Timeout for tcp connection
   timeout: 5

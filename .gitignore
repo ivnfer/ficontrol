@@ -132,4 +132,4 @@ dmypy.json
 .pyre/
 ficontrol2
 ficontrol
-db/ficontrol - copia.db
+data/ficontrol - copia.db
